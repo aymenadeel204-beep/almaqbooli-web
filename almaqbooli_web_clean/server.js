@@ -72,12 +72,14 @@ const LUXURY_DISHPACK = [
   { productId: 111, name: 'شاي كرك عدني ملكي بالزعفران', price: 600, category: 'مشروبات ساخنة', image: 'karak_tea.jpg', isAvailable: true, badge: 'كرك أصيل ☕' }
 ];
 
-// ─── دعم التخزين السحابي الدائم عبر MongoDB Atlas عند توفر MONGODB_URI ───
+// ─── دعم التخزين السحابي الدائم عبر MongoDB Atlas (سحابي حر مدى الحياة) ───
+const DEFAULT_MONGO_URI = 'mongodb+srv://aynexsoftware_db_user:PIMoXcGcDJjwftGm@aynex-almaqbooli.n1xwkrm.mongodb.net/?appName=aynex-almaqbo';
 let mongoCollection = null;
 let isMongoConnecting = false;
+let isInitialLoaded = false;
 
 async function initMongoDb() {
-  const uri = process.env.MONGODB_URI;
+  const uri = process.env.MONGODB_URI || DEFAULT_MONGO_URI;
   if (!uri || isMongoConnecting) return;
   isMongoConnecting = true;
   try {
@@ -98,7 +100,7 @@ async function initMongoDb() {
     const remoteDoc = await mongoCollection.findOne({ _id: 'current_cloud_db' });
     if (remoteDoc && remoteDoc.state) {
       cloudDb = { ...cloudDb, ...remoteDoc.state };
-      fs.writeFileSync(DB_FILE, JSON.stringify(cloudDb, null, 2), 'utf8');
+      try { fs.writeFileSync(DB_FILE, JSON.stringify(cloudDb, null, 2), 'utf8'); } catch(e){}
       console.log('✔ تم استرجاع أحدث بيانات سحابية دائمة ومطابقتها محلياً');
     } else {
       // رفع الحالة الحالية للمرة الأولى
@@ -117,20 +119,21 @@ async function initMongoDb() {
 }
 
 function loadDatabase() {
+  if (isInitialLoaded) return;
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
       cloudDb = { ...cloudDb, ...data };
+      isInitialLoaded = true;
     } else {
       saveDatabase();
+      isInitialLoaded = true;
     }
   } catch (err) {
     console.error('Failed to load cloud_db.json, using defaults:', err.message);
   }
   
-  if (process.env.MONGODB_URI) {
-    initMongoDb().catch(e => console.warn('Mongo init error:', e.message));
-  }
+  initMongoDb().catch(e => console.warn('Mongo init error:', e.message));
 }
 
 function saveDatabase() {
@@ -560,11 +563,12 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/dashboard/stats' && req.method === 'GET') {
     loadDatabase();
     const today = new Date().toISOString().slice(0, 10);
+    const localToday = new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10);
     
-    // فلترة طلبات اليوم
+    // فلترة طلبات اليوم (تطابق توقيت السيرفر واليمن)
     const todayOrders = cloudDb.orders.filter(o => {
       const ordDate = (o.createdAt || o.createdAtUtc || '').slice(0, 10);
-      return ordDate === today || !o.createdAt;
+      return ordDate === today || ordDate === localToday || !o.createdAt;
     });
 
     const totalSales = cloudDb.orders.reduce((sum, o) => sum + (Number(o.netAmount) || Number(o.totalAmount) || 0), 0);
