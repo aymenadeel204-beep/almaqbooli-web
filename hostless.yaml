@@ -1,3 +1,5 @@
 build:
-  system: "docker"
-  dockerfile_path: "./Dockerfile"
+  system: docker
+
+dockerfile_path: "./Dockerfile"
+working_directory: "/"
