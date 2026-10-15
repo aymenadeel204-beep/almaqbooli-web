@@ -1,0 +1,23 @@
+{
+  "name": "almaqbooli-restaurant-cloud",
+  "version": "1.0.0",
+  "description": "منصة المتابعة والإدارة السحابية لمطعم المقبولي - AYNEX",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "pos",
+    "restaurant",
+    "cloud",
+    "almaqbooli"
+  ],
+  "author": "AYNEX",
+  "license": "ISC",
+  "dependencies": {
+    "mongodb": "^6.10.0"
+  }
+}
